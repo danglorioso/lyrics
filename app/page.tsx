@@ -36,18 +36,18 @@ const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-900 min-h-screen flex flex-col items-center text-center text-white">
+    <div className="bg-slate-950 min-h-screen flex flex-col items-center text-center text-white">
       <Header />
 
       <main className="w-full max-w-2xl px-6 space-y-10">
         {/* Step 1 */}
         <section>
           <div className="flex items-center justify-center gap-2 mb-3">
-            <Bs1Circle className="text-purple-400 text-2xl" />
+            <Bs1Circle className="text-purple-400 text-2xl mr-1" />
             <h2 className="text-xl sm:text-2xl font-semibold">
               Select an{" "}
               <span className="text-purple-400 drop-shadow-[0_0_6px_rgba(168,85,247,0.75)]">
-                Artist
+                 Artist
               </span>
             </h2>
           </div>
@@ -60,9 +60,9 @@ const HomePage: React.FC = () => {
         {/* Step 2 */}
         <section>
           <div className="flex items-center justify-center gap-2 mb-3">
-            <Bs2Circle className="text-purple-400 text-2xl" />
+            <Bs2Circle className="text-purple-400 text-2xl mr-1" />
             <h2 className="text-xl sm:text-2xl font-semibold">
-              Enter a{" "}
+               Enter a{" "}
               <span className="text-purple-400 drop-shadow-[0_0_6px_rgba(168,85,247,0.75)]">
                 Keyword
               </span>
