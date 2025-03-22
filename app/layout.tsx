@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Orbitron, Tilt_Neon, Inter } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -11,6 +11,18 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const orbitron = Orbitron({
+  subsets: ['latin'],
+  weight: ['400', '700'], // or just '400' for Monoton
+});
+
+const tiltNeon = Tilt_Neon({
+  subsets: ['latin'],
+  weight: '400',
+});
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: "Lyric Search - Dan Glorioso",
@@ -24,9 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${tiltNeon.className} bg-gray-900 text-white`}>
         {children}
       </body>
     </html>
