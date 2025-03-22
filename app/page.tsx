@@ -11,29 +11,65 @@ import Footer from "../components/Footer";
 interface ResultType {
   title: string;
   snippet: string;
+  before?: string;
+  after?: string;
+  section?: string;
+  songUrl: string;
 }
+
 
 const HomePage: React.FC = () => {
   const [selectedArtist, setSelectedArtist] = useState<OptionType | null>(null);
   const [keyword, setKeyword] = useState("");
   const [results, setResults] = useState<ResultType[]>([]);
+  const [uniqueSongCount, setUniqueSongCount] = useState(0);
 
   const handleSearch = async () => {
+    console.log("Search clicked!");
+
     if (selectedArtist && keyword) {
-      setResults([
-        {
-          title: "Song 1",
-          snippet: `This is a snippet containing ${keyword} from Song 1.`,
-        },
-        {
-          title: "Song 2",
-          snippet: `This is a snippet containing ${keyword} from Song 2.`,
-        },
-      ]);
+      try {
+        const res = await fetch("/api/search-lyrics", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            artistId: selectedArtist.value, // This is the Genius artist ID
+            keyword,
+          }),
+        });
+  
+        const data = await res.json();
+  
+        if (!res.ok) {
+          console.error("Error:", data.error);
+          setResults([]);
+          return;
+        }
+  
+        const formattedResults = data.results.map((r: any) => ({
+          title: r.songTitle,
+          snippet: r.match,
+          before: r.before,
+          after: r.after,
+          section: r.section,
+          songUrl: r.songUrl,
+        }));
+        
+        setResults(formattedResults);
+        
+        // Count unique songs
+        const uniqueTitles = new Set(formattedResults.map((r) => r.title));
+        setUniqueSongCount(uniqueTitles.size);        
+      } catch (err) {
+        console.error("Failed to fetch results:", err);
+        setResults([]);
+      }
     } else {
       setResults([]);
     }
-  };
+  };  
 
   return (
     <div className="bg-slate-950 min-h-screen flex flex-col items-center text-center text-white">
@@ -86,16 +122,28 @@ const HomePage: React.FC = () => {
 
         {/* Results */}
         {results.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold text-purple-300">
+          <section className="space-y-2">
+            <h1 className="text-3xl font-semibold text-purple-300">
               Results
+            </h1>
+
+            <h2 className="text-lg font-semibold text-white mb-10">
+              Found in <span className="text-purple-400 drop-shadow-[0_0_6px_rgba(168,85,247,0.8)]">
+                {uniqueSongCount} unique song{uniqueSongCount !== 1 ? 's' : ''}
+              </span>
             </h2>
+
             <div className="flex flex-col gap-4">
               {results.map((result, index) => (
                 <ResultCard
                   key={index}
                   title={result.title}
                   snippet={result.snippet}
+                  before={result.before}
+                  after={result.after}
+                  section={result.section}
+                  songUrl={result.songUrl}
+                  keyword={keyword}
                 />
               ))}
             </div>

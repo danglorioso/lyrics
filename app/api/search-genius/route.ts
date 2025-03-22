@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     if (!response.ok) {
       return NextResponse.json({ error: 'Failed to fetch from Genius API' }, { status: response.status });
     }
-
+ 
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
