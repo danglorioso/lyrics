@@ -26,9 +26,6 @@ const HomePage: React.FC = () => {
   const [uniqueSongCount, setUniqueSongCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // Dynamically import the ArtistDropdown component to fix hydration error
-  const ArtistDropdown = dynamic(() => import('../components/ArtistDropdown'), { ssr: false });
-
   const handleSearch = async () => {
     if (!selectedArtist || !keyword) return;
   
