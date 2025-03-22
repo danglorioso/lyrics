@@ -7,6 +7,7 @@ import ArtistDropdown, { OptionType } from "../components/ArtistDropdown";
 import KeywordInput from "../components/KeywordInput";
 import ResultCard from "../components/ResultCard";
 import Footer from "../components/Footer";
+import dynamic from 'next/dynamic';
 
 interface ResultType {
   title: string;
@@ -24,6 +25,9 @@ const HomePage: React.FC = () => {
   const [results, setResults] = useState<ResultType[]>([]);
   const [uniqueSongCount, setUniqueSongCount] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  // Dynamically import the ArtistDropdown component to fix hydration error
+  const ArtistDropdown = dynamic(() => import('../components/ArtistDropdown'), { ssr: false });
 
   const handleSearch = async () => {
     if (!selectedArtist || !keyword) return;
