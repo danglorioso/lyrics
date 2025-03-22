@@ -14,6 +14,7 @@ const Footer: React.FC = () => {
           Dan Glorioso
         </a>
       </p>
+      {/* <p className="text-xs text-gray-500 mt-1">Copyright © 2025. All rights reserved.</p> */}
     </footer>
   );
 };
