@@ -23,56 +23,53 @@ const HomePage: React.FC = () => {
   const [keyword, setKeyword] = useState("");
   const [results, setResults] = useState<ResultType[]>([]);
   const [uniqueSongCount, setUniqueSongCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   const handleSearch = async () => {
-    console.log("Search clicked!");
-
-    if (selectedArtist && keyword) {
-      try {
-        const res = await fetch("/api/search-lyrics", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            artistId: selectedArtist.value, // This is the Genius artist ID
-            keyword,
-          }),
-        });
+    if (!selectedArtist || !keyword) return;
   
-        const data = await res.json();
+    setLoading(true);
+    setResults([]);
+    setUniqueSongCount(0);
   
-        if (!res.ok) {
-          console.error("Error:", data.error);
-          setResults([]);
-          return;
-        }
+    try {
+      const res = await fetch("/api/search-lyrics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          artistId: selectedArtist.value,
+          keyword,
+        }),
+      });
   
-        const formattedResults = data.results.map((r: any) => ({
-          title: r.songTitle,
-          snippet: r.match,
-          before: r.before,
-          after: r.after,
-          section: r.section,
-          songUrl: r.songUrl,
-        }));
-        
-        setResults(formattedResults);
-        
-        // Count unique songs
-        const uniqueTitles = new Set(formattedResults.map((r) => r.title));
-        setUniqueSongCount(uniqueTitles.size);        
-      } catch (err) {
-        console.error("Failed to fetch results:", err);
-        setResults([]);
+      const data = await res.json();
+  
+      if (!res.ok) {
+        console.error("Error:", data.error);
+        return;
       }
-    } else {
-      setResults([]);
+  
+      const formattedResults: ResultType[] = data.results.map((r: any) => ({
+        title: r.songTitle,
+        snippet: r.match,
+        before: r.before,
+        after: r.after,
+        section: r.section,
+        songUrl: r.songUrl,
+      }));
+  
+      setResults(formattedResults);
+      setUniqueSongCount(new Set(formattedResults.map(r => r.title)).size);
+    } catch (err) {
+      console.error("Search error:", err);
+    } finally {
+      setLoading(false);
     }
-  };  
+  };
+  
 
   return (
-    <div className="bg-slate-950 min-h-screen flex flex-col items-center text-center text-white">
+    <div className="bg-slate-950 min-h-screen flex flex-col items-center text-center text-white pb-16">
       <Header />
 
       <main className="w-full max-w-2xl px-6 space-y-10">
@@ -111,14 +108,30 @@ const HomePage: React.FC = () => {
         <section className="flex justify-center">
           <button
             onClick={handleSearch}
-            className="relative inline-flex items-center justify-center px-8 py-3 font-semibold text-white rounded-md bg-gradient-to-r from-purple-600 via-fuchsia-500 to-purple-600
-              transition-all duration-300 transform hover:scale-105 active:scale-95
-              animate-pulse-glow"
+            disabled={loading}
+            className={`flex items-center justify-center px-6 py-2 rounded font-medium transition-colors ${
+              loading
+                ? 'bg-indigo-950 text-white cursor-wait'
+                : 'bg-purple-600 hover:bg-purple-700 text-white'
+            }`}
           >
-            <span className="z-10">Search</span>
+            {loading ? (
+              <>
+                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                Searching...
+              </>
+            ) : (
+              'Search'
+            )}
           </button>
         </section>
 
+        {/* {loading && (
+          <div className="flex items-center justify-center mt-10">
+          <div className="h-6 w-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
+          <span className="ml-3 text-purple-300 font-medium">Searching...</span>
+        </div>
+        )} */}
 
         {/* Results */}
         {results.length > 0 && (
