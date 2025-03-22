@@ -23,38 +23,25 @@ export async function POST(req: NextRequest) {
   };
 
   const searchInLyrics = async (url: string) => {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-    });
-  
+    const res = await fetch(url);
     const html = await res.text();
-  
-    // Log raw HTML length
-    console.log('📄 HTML length:', html.length);
-    console.log('🔗 Song URL:', url);
-  
     const $ = load(html);
-    const containers = $('[data-lyrics-container]');
-    console.log(`🎶 Found ${containers.length} lyric containers`);
   
     let rawLyricsHtml = '';
-    containers.each((_, el) => {
+    $('[data-lyrics-container]').each((_, el) => {
       rawLyricsHtml += $(el).html(); // Get raw HTML from each container
     });
   
+    // Replace <br> tags with newline markers
     const cleanedHtml = rawLyricsHtml.replace(/<br\s*\/?>/g, '\n');
+  
+    // Load into cheerio again to extract all inner text while keeping structure
     const textLyrics = load(cleanedHtml).text();
   
     const allLines = textLyrics
       .split('\n')
       .map(line => line.trim())
       .filter(line => line !== '');
-  
-    console.log('📝 First 5 lyric lines:', allLines.slice(0, 5));
   
     const results: any[] = [];
   
@@ -90,7 +77,6 @@ export async function POST(req: NextRequest) {
   
     return results;
   };
-  
   
   const getSection = (lines: string[], index: number): string | null => {
     for (let i = index; i >= 0; i--) {
