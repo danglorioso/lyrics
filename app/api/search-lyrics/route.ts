@@ -78,7 +78,6 @@ export async function POST(req: NextRequest) {
     return results;
   };
   
-
   const getSection = (lines: string[], index: number): string | null => {
     for (let i = index; i >= 0; i--) {
       const match = lines[i].match(/^\[(.*?)\]$/);
@@ -87,7 +86,6 @@ export async function POST(req: NextRequest) {
     return null;
   };
   
-
   let page = 1;
   let allResults: any[] = [];
   let hasMore = true;
@@ -98,6 +96,12 @@ export async function POST(req: NextRequest) {
     if (songs.length === 0) break;
 
     for (const song of songs) {
+      const res = await fetch(song.url);
+      console.log('Fetched', song.url, 'status:', res.status);
+
+      const html = await res.text();
+      console.log('HTML length:', html.length);
+
       const matches = await searchInLyrics(song.url);
       matches.forEach(match => {
         allResults.push({
