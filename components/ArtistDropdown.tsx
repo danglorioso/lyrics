@@ -1,5 +1,5 @@
 import React from 'react';
-import Select from 'react-select';
+import AsyncSelect from 'react-select/async';
 
 export type OptionType = {
   label: string;
@@ -14,7 +14,7 @@ interface ArtistDropdownProps {
 const customStyles = {
   control: (provided: any, state: any) => ({
     ...provided,
-    backgroundColor: '#1f2937', // dark gray
+    backgroundColor: '#1f2937',
     borderColor: state.isFocused ? '#8b5cf6' : '#4b5563',
     boxShadow: state.isFocused ? '0 0 0 1px #8b5cf6' : 'none',
     '&:hover': {
@@ -40,27 +40,42 @@ const customStyles = {
   }),
 };
 
+// 👇 Genius API search
+const fetchArtists = async (inputValue: string): Promise<OptionType[]> => {
+    if (inputValue.length < 3) return [];
+  
+    const res = await fetch(`/api/search-genius?q=${encodeURIComponent(inputValue)}`);
+    const json = await res.json();
+    const hits = json.response?.hits || [];
+  
+    const artistsMap = new Map<string, OptionType>();
+    hits.forEach((hit: any) => {
+      const artist = hit.result.primary_artist;
+      if (!artistsMap.has(artist.id)) {
+        artistsMap.set(artist.id, {
+          label: artist.name,
+          value: artist.id.toString(),
+        });
+      }
+    });
+  
+    return Array.from(artistsMap.values());
+  };  
+
 const ArtistDropdown: React.FC<ArtistDropdownProps> = ({
   selectedArtist,
   setSelectedArtist,
 }) => {
-  // Dummy artist options
-  const options: OptionType[] = [
-    { value: 'artist1', label: 'Artist One' },
-    { value: 'artist2', label: 'Artist Two' },
-    { value: 'artist3', label: 'Artist Three' },
-  ];
-
   return (
-    <div>
-      <Select
-        value={selectedArtist}
-        onChange={setSelectedArtist}
-        options={options}
-        placeholder="Select an artist..."
-        styles={customStyles}
-      />
-    </div>
+    <AsyncSelect
+      cacheOptions
+      defaultOptions={false}
+      loadOptions={fetchArtists}
+      onChange={setSelectedArtist}
+      value={selectedArtist}
+      placeholder="Search for an artist..."
+      styles={customStyles}
+    />
   );
 };
 
