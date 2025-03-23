@@ -22,33 +22,26 @@ export async function POST(req: NextRequest) {
     return data.response.songs;
   };
 
-  const searchInLyrics = async (title: string, url: string) => {
-    const res = await fetch(url, {
+  const searchInLyrics = async (title: string, url: string, id: number) => {
+    const res = await fetch(`https://genius.com/songs/${id}/lyrics`, {
       headers: {
         'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
       },
     });
 
     const html = await res.text();
     const $ = cheerio.load(html);
 
-    const lyricsContainers = $('[data-lyrics-container]');
-    if (!lyricsContainers.length) {
-      console.log(`⚠️ No lyrics container found for "${title}"`);
-    }
-
-    let allLyrics: string[] = [];
-
-    lyricsContainers.each((_, el) => {
+    // Similar to previous logic
+    let rawLyricsHtml = '';
+    $('[data-lyrics-container]').each((_, el) => {
       const container = $(el);
       container.find('br').replaceWith('\n');
-      const text = container.text();
-      allLyrics.push(text);
+      rawLyricsHtml += container.text();
     });
 
-    const allLines = allLyrics
-      .join('\n')
+    const allLines = rawLyricsHtml
       .split('\n')
       .map(line => line.trim())
       .filter(line => line !== '');
@@ -60,7 +53,6 @@ export async function POST(req: NextRequest) {
     allLines.forEach((line, i) => {
       if (line.toLowerCase().includes(keyword.toLowerCase())) {
         const currentSection = getSection(allLines, i);
-
         const isSectionLabel = (text: string) => /^\[.*?\]$/.test(text);
 
         const before =
@@ -108,7 +100,7 @@ export async function POST(req: NextRequest) {
     if (!songs.length) break;
 
     for (const song of songs) {
-      const matches = await searchInLyrics(song.title, song.url);
+      const matches = await searchInLyrics(song.title, song.url, song.id);
       allResults.push(...matches);
     }
 
