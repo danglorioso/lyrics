@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
   let page = 1;
   let allResults: any[] = [];
 
-  while (page <= 3) {
+  while (page <= 1) {
     const songs = await fetchSongs(page);
     if (!songs.length) break;
 
