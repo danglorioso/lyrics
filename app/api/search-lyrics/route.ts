@@ -1,4 +1,3 @@
-// app/api/search-lyrics/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 
@@ -22,17 +21,21 @@ export async function POST(req: NextRequest) {
     return data.response.songs;
   };
 
-  const searchInLyrics = async (songId: number, title: string, url: string) => {
-    const res = await fetch(`https://genius.com/songs/${songId}/lyrics`, {
+  const searchInLyrics = async (title: string, url: string) => {
+    const res = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
       },
     });
 
     const html = await res.text();
     const $ = cheerio.load(html);
 
-    const rawLyricsHtml = $('body').html() || '';
+    let rawLyricsHtml = '';
+    $('[data-lyrics-container]').each((_, el) => {
+      rawLyricsHtml += $(el).html();
+    });
 
     const cleanedHtml = rawLyricsHtml.replace(/<br\s*\/?>/g, '\n');
     const textLyrics = cheerio.load(cleanedHtml).text();
@@ -97,7 +100,7 @@ export async function POST(req: NextRequest) {
     if (!songs.length) break;
 
     for (const song of songs) {
-      const matches = await searchInLyrics(song.id, song.title, song.url);
+      const matches = await searchInLyrics(song.title, song.url);
       allResults.push(...matches);
     }
 

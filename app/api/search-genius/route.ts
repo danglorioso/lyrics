@@ -3,6 +3,8 @@
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
+  console.log("🧪 GENIUS_ACCESS_TOKEN:", !!process.env.GENIUS_ACCESS_TOKEN);
+  
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
 
