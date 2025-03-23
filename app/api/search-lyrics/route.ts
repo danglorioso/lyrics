@@ -1,3 +1,4 @@
+// app/api/search-lyrics/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 
@@ -32,15 +33,22 @@ export async function POST(req: NextRequest) {
     const html = await res.text();
     const $ = cheerio.load(html);
 
-    let rawLyricsHtml = '';
-    $('[data-lyrics-container]').each((_, el) => {
-      rawLyricsHtml += $(el).html();
+    const lyricsContainers = $('[data-lyrics-container]');
+    if (!lyricsContainers.length) {
+      console.log(`⚠️ No lyrics container found for "${title}"`);
+    }
+
+    let allLyrics: string[] = [];
+
+    lyricsContainers.each((_, el) => {
+      const container = $(el);
+      container.find('br').replaceWith('\n');
+      const text = container.text();
+      allLyrics.push(text);
     });
 
-    const cleanedHtml = rawLyricsHtml.replace(/<br\s*\/?>/g, '\n');
-    const textLyrics = cheerio.load(cleanedHtml).text();
-
-    const allLines = textLyrics
+    const allLines = allLyrics
+      .join('\n')
       .split('\n')
       .map(line => line.trim())
       .filter(line => line !== '');
@@ -95,7 +103,7 @@ export async function POST(req: NextRequest) {
   let page = 1;
   let allResults: any[] = [];
 
-  while (page <= 1) {
+  while (page <= 3) {
     const songs = await fetchSongs(page);
     if (!songs.length) break;
 
