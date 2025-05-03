@@ -4,12 +4,8 @@ import * as cheerio from 'cheerio';
 
 export async function POST(req: NextRequest) {
   const { artistId, keyword } = await req.json();
-
   if (!artistId || !keyword) {
-    return NextResponse.json(
-      { error: 'Missing artistId or keyword' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'Missing artistId or keyword' }, { status: 400 });
   }
 
   const headers = {
@@ -25,92 +21,84 @@ export async function POST(req: NextRequest) {
     return data.response.songs;
   };
 
-  const searchInLyrics = async (title: string, url: string) => {
-    // Build a realistic browser header
-    const userAgent =
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ' +
-      'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36';
-    const fetchHeaders = {
-      'User-Agent': userAgent,
-      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    };
+  // -------------- Swap to Mobile Lyrics --------------
+  const searchInLyrics = async (
+    title: string,
+    url: string,
+    songId: number
+  ) => {
+    const mobileUrl = `https://genius.com/mobile/lyrics/${songId}`;
+    const ua =
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) ' +
+      'AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
+    console.log(`🛠️ Fetching (mobile) lyrics for "${title}" from ${mobileUrl}`);
+    console.log(`   ↳ UA: ${ua}`);
 
-    console.log(`🛠️ Fetching lyrics for "${title}" from ${url}`);
-    console.log('   ↳ Using headers:', fetchHeaders);
-
-    const res = await fetch(url, { headers: fetchHeaders });
+    const res = await fetch(mobileUrl, {
+      headers: { 'User-Agent': ua, Accept: 'text/html' },
+    });
     console.log(`   ↳ Status: ${res.status}`);
 
     const html = await res.text();
     console.log(`   ↳ HTML length: ${html.length}`);
-    console.log(
-      '   ↳ HTML snippet:',
-      html.slice(0, 200).replace(/\n/g, ' '),
-      '…'
-    );
 
     const $ = cheerio.load(html);
-    const containers = $('[data-lyrics-container]');
-    console.log(`   ↳ Containers found: ${containers.length}`);
-
-    let allLyrics: string[] = [];
-    containers.each((_, el) => {
-      const container = $(el);
-      container.find('br').replaceWith('\n');
-      allLyrics.push(container.text());
+    // On mobile pages, lyrics are typically plain <p> or <pre>, but we can still
+    // look for the data-lyrics-container attribute if present, otherwise grab all text.
+    let raw = '';
+    $('[data-lyrics-container]').each((_, el) => {
+      raw += $(el).text() + '\n';
     });
+    if (!raw) {
+      // fallback: grab everything in the body
+      raw = $('body').text();
+    }
 
-    const allLines = allLyrics
-      .join('\n')
+    const lines = raw
       .split('\n')
       .map((l) => l.trim())
-      .filter((l) => l !== '');
+      .filter((l) => l);
 
-    console.log(`   ↳ Total lines parsed: ${allLines.length}`);
+    console.log(`   ↳ Total lines parsed: ${lines.length}`);
 
-    // filter and map matches
-    return allLines
+    return lines
       .map((line, i) => ({ line, i }))
-      .filter(({ line }) =>
-        line.toLowerCase().includes(keyword.toLowerCase())
-      )
-      .map(({ line, i }) => ({
-        match: line,
-        before:
-          i > 0 && !/^\[.*\]$/.test(allLines[i - 1])
-            ? allLines[i - 1]
-            : null,
-        after:
-          i < allLines.length - 1 && !/^\[.*\]$/.test(allLines[i + 1])
-            ? allLines[i + 1]
-            : null,
-        index: i,
-        section: getSection(allLines, i),
-        songTitle: title,
-        songUrl: url,
-      }));
+      .filter(({ line }) => line.toLowerCase().includes(keyword.toLowerCase()))
+      .map(({ line, i }) => {
+        const isLabel = (t: string) => /^\[.*\]$/.test(t);
+        const section = ((): string | null => {
+          for (let j = i; j >= 0; j--) {
+            const m = lines[j].match(/^\[(.*?)\]$/);
+            if (m) return m[1];
+          }
+          return null;
+        })();
+        const before = i > 0 && !isLabel(lines[i - 1]) ? lines[i - 1] : null;
+        const after =
+          i < lines.length - 1 && !isLabel(lines[i + 1]) ? lines[i + 1] : null;
+        return {
+          match: line,
+          before,
+          after,
+          index: i,
+          section,
+          songTitle: title,
+          songUrl: url,
+        };
+      });
   };
-
-  const getSection = (lines: string[], index: number): string | null => {
-    for (let i = index; i >= 0; i--) {
-      const match = lines[i].match(/^\[(.*?)\]$/);
-      if (match) return match[1];
-    }
-    return null;
-  };
+  // ----------------------------------------------------
 
   let page = 1;
-  let allResults: any[] = [];
+  const allResults: any[] = [];
 
   while (page <= 3) {
     const songs = await fetchSongs(page);
     if (!songs.length) break;
-
     for (const song of songs) {
-      const matches = await searchInLyrics(song.title, song.url);
+      const matches = await searchInLyrics(song.title, song.url, song.id);
       allResults.push(...matches);
     }
-
     page++;
   }
 
