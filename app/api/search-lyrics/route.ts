@@ -6,7 +6,10 @@ export async function POST(req: NextRequest) {
   const { artistId, keyword } = await req.json();
 
   if (!artistId || !keyword) {
-    return NextResponse.json({ error: 'Missing artistId or keyword' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Missing artistId or keyword' },
+      { status: 400 }
+    );
   }
 
   const headers = {
@@ -23,73 +26,69 @@ export async function POST(req: NextRequest) {
   };
 
   const searchInLyrics = async (title: string, url: string) => {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
-      },
-    });
+    // Build a realistic browser header
+    const userAgent =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ' +
+      'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36';
+    const fetchHeaders = {
+      'User-Agent': userAgent,
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    };
+
+    console.log(`🛠️ Fetching lyrics for "${title}" from ${url}`);
+    console.log('   ↳ Using headers:', fetchHeaders);
+
+    const res = await fetch(url, { headers: fetchHeaders });
+    console.log(`   ↳ Status: ${res.status}`);
 
     const html = await res.text();
-    const $ = cheerio.load(html);
+    console.log(`   ↳ HTML length: ${html.length}`);
+    console.log(
+      '   ↳ HTML snippet:',
+      html.slice(0, 200).replace(/\n/g, ' '),
+      '…'
+    );
 
-    const lyricsContainers = $('[data-lyrics-container]');
-    if (!lyricsContainers.length) {
-      console.log(`⚠️ No lyrics container found for "${title}"`);
-    }
+    const $ = cheerio.load(html);
+    const containers = $('[data-lyrics-container]');
+    console.log(`   ↳ Containers found: ${containers.length}`);
 
     let allLyrics: string[] = [];
-
-    lyricsContainers.each((_, el) => {
+    containers.each((_, el) => {
       const container = $(el);
       container.find('br').replaceWith('\n');
-      const text = container.text();
-      allLyrics.push(text);
+      allLyrics.push(container.text());
     });
 
     const allLines = allLyrics
       .join('\n')
       .split('\n')
-      .map(line => line.trim())
-      .filter(line => line !== '');
+      .map((l) => l.trim())
+      .filter((l) => l !== '');
 
-    console.log(`🎤 ${title} - ${allLines.length} lines scraped`);
+    console.log(`   ↳ Total lines parsed: ${allLines.length}`);
 
-    const results: any[] = [];
-
-    allLines.forEach((line, i) => {
-      if (line.toLowerCase().includes(keyword.toLowerCase())) {
-        const currentSection = getSection(allLines, i);
-
-        const isSectionLabel = (text: string) => /^\[.*?\]$/.test(text);
-
-        const before =
-          i > 0 &&
-          !isSectionLabel(allLines[i - 1]) &&
-          getSection(allLines, i - 1) === currentSection
+    // filter and map matches
+    return allLines
+      .map((line, i) => ({ line, i }))
+      .filter(({ line }) =>
+        line.toLowerCase().includes(keyword.toLowerCase())
+      )
+      .map(({ line, i }) => ({
+        match: line,
+        before:
+          i > 0 && !/^\[.*\]$/.test(allLines[i - 1])
             ? allLines[i - 1]
-            : null;
-
-        const after =
-          i < allLines.length - 1 &&
-          !isSectionLabel(allLines[i + 1]) &&
-          getSection(allLines, i + 1) === currentSection
+            : null,
+        after:
+          i < allLines.length - 1 && !/^\[.*\]$/.test(allLines[i + 1])
             ? allLines[i + 1]
-            : null;
-
-        results.push({
-          match: line,
-          before,
-          after,
-          index: i,
-          section: currentSection,
-          songTitle: title,
-          songUrl: url,
-        });
-      }
-    });
-
-    return results;
+            : null,
+        index: i,
+        section: getSection(allLines, i),
+        songTitle: title,
+        songUrl: url,
+      }));
   };
 
   const getSection = (lines: string[], index: number): string | null => {
