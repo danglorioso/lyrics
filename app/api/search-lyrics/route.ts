@@ -14,7 +14,16 @@ export async function POST(req: NextRequest) {
     Accept: 'application/json',
   };
 
-  // 1) Fetch list of songs
+  // helper to chunk an array
+  function chunkArray<T>(arr: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < arr.length; i += size) {
+      chunks.push(arr.slice(i, i + size));
+    }
+    return chunks;
+  }
+
+  // 1) fetch songs list
   const fetchSongs = async (page = 1) => {
     const res = await fetch(
       `https://api.genius.com/artists/${artistId}/songs?per_page=20&page=${page}&sort=popularity`,
@@ -24,7 +33,7 @@ export async function POST(req: NextRequest) {
     return json.response.songs as Array<{ id: number; title: string; url: string }>;
   };
 
-  // 2) Fetch embed_content from /songs/:id
+  // 2) scrape/embed lyrics for one song
   const searchInLyrics = async (
     title: string,
     url: string,
@@ -34,43 +43,37 @@ export async function POST(req: NextRequest) {
     const res = await fetch(`https://api.genius.com/songs/${songId}`, {
       headers: apiHeaders,
     });
-    console.log(`   ↳ API status: ${res.status}`);
     const json = await res.json();
     const embedHtml = json.response.song.embed_content as string;
-    console.log(`   ↳ embed_content length: ${embedHtml.length}`);
 
-    // parse the embed HTML
+    // parse embed_content
     const $ = cheerio.load(embedHtml);
-    // all lyric lines are inside that div
     const rawText = $('div').text();
-    const allLines = rawText
+    const lines = rawText
       .split('\n')
       .map((l) => l.trim())
       .filter(Boolean);
-    console.log(`   ↳ Parsed lines: ${allLines.length}`);
 
-    // filter for your keyword and grab before/after
-    return allLines
+    // filter for keyword + before/after
+    return lines
       .map((line, i) => ({ line, i }))
       .filter(({ line }) =>
         line.toLowerCase().includes(keyword.toLowerCase())
       )
       .map(({ line, i }) => {
-        // find section header
+        // find last section header above
         let section: string | null = null;
         for (let j = i; j >= 0; j--) {
-          const m = allLines[j].match(/^\[(.*?)\]$/);
+          const m = lines[j].match(/^\[(.*?)\]$/);
           if (m) {
             section = m[1];
             break;
           }
         }
         const isLabel = (t: string) => /^\[.*\]$/.test(t);
-        const before = i > 0 && !isLabel(allLines[i - 1]) ? allLines[i - 1] : null;
+        const before = i > 0 && !isLabel(lines[i - 1]) ? lines[i - 1] : null;
         const after =
-          i < allLines.length - 1 && !isLabel(allLines[i + 1])
-            ? allLines[i + 1]
-            : null;
+          i < lines.length - 1 && !isLabel(lines[i + 1]) ? lines[i + 1] : null;
 
         return {
           match: line,
@@ -84,17 +87,26 @@ export async function POST(req: NextRequest) {
       });
   };
 
-  // 3) Loop through pages & collect matches
-  let page = 1;
+  // 3) iterate pages + chunked parallel fetch
   const allResults: any[] = [];
-  while (page <= 3) {
+  const MAX_PAGES = 3;
+  const CONCURRENCY = 5;
+
+  for (let page = 1; page <= MAX_PAGES; page++) {
     const songs = await fetchSongs(page);
-    if (songs.length === 0) break;
-    for (const song of songs) {
-      const matches = await searchInLyrics(song.title, song.url, song.id);
-      allResults.push(...matches);
+    if (!songs.length) break;
+
+    // chunk into batches of 5
+    const batches = chunkArray(songs, CONCURRENCY);
+    for (const batch of batches) {
+      // fire off up to 5 at once
+      const batchPromises = batch.map((song) =>
+        searchInLyrics(song.title, song.url, song.id)
+      );
+      const batchResults = await Promise.all(batchPromises);
+      // flatten and accumulate
+      batchResults.forEach((r) => allResults.push(...r));
     }
-    page++;
   }
 
   return NextResponse.json({ results: allResults });
