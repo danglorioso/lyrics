@@ -17,9 +17,7 @@ const customStyles = {
     backgroundColor: '#1f2937',
     borderColor: state.isFocused ? '#8b5cf6' : '#4b5563',
     boxShadow: state.isFocused ? '0 0 0 1px #8b5cf6' : 'none',
-    '&:hover': {
-      borderColor: '#8b5cf6',
-    },
+    '&:hover': { borderColor: '#8b5cf6' },
   }),
   menu: (provided: any) => ({
     ...provided,
@@ -29,54 +27,54 @@ const customStyles = {
     ...provided,
     backgroundColor: state.isFocused ? '#8b5cf6' : '#1f2937',
     color: state.isFocused ? '#fff' : '#d1d5db',
-    '&:hover': {
-      backgroundColor: '#8b5cf6',
-      color: '#fff',
-    },
+    '&:hover': { backgroundColor: '#8b5cf6', color: '#fff' },
   }),
   singleValue: (provided: any) => ({
     ...provided,
     color: '#d1d5db',
   }),
+  input: (provided: any) => ({
+    ...provided,
+    color: '#d1d5db',   // typed text matches the options/selected-color
+  }),
 };
 
-// 👇 Genius API search
 const fetchArtists = async (inputValue: string): Promise<OptionType[]> => {
-    if (inputValue.length < 3) return [];
-  
-    const res = await fetch(`/api/search-genius?q=${encodeURIComponent(inputValue)}`);
-    const json = await res.json();
-    const hits = json.response?.hits || [];
-  
-    const artistsMap = new Map<string, OptionType>();
-    hits.forEach((hit: any) => {
-      const artist = hit.result.primary_artist;
-      if (!artistsMap.has(artist.id)) {
-        artistsMap.set(artist.id, {
-          label: artist.name,
-          value: artist.id.toString(),
-        });
-      }
-    });
-  
-    return Array.from(artistsMap.values());
-  };  
+  if (inputValue.length < 3) return [];
+
+  const res = await fetch(
+    `/api/search-genius?q=${encodeURIComponent(inputValue)}`
+  );
+  const json = await res.json();
+  const hits = json.response?.hits || [];
+
+  const artistsMap = new Map<string, OptionType>();
+  hits.forEach((hit: any) => {
+    const artist = hit.result.primary_artist;
+    if (!artistsMap.has(artist.id)) {
+      artistsMap.set(artist.id, {
+        label: artist.name,
+        value: artist.id.toString(),
+      });
+    }
+  });
+
+  return Array.from(artistsMap.values());
+};
 
 const ArtistDropdown: React.FC<ArtistDropdownProps> = ({
   selectedArtist,
   setSelectedArtist,
-}) => {
-  return (
-    <AsyncSelect
-      cacheOptions
-      defaultOptions={false}
-      loadOptions={fetchArtists}
-      onChange={setSelectedArtist}
-      value={selectedArtist}
-      placeholder="Search for an artist..."
-      styles={customStyles}
-    />
-  );
-};
+}) => (
+  <AsyncSelect
+    cacheOptions
+    defaultOptions={false}
+    loadOptions={fetchArtists}
+    onChange={setSelectedArtist}
+    value={selectedArtist}
+    placeholder="Search for an artist..."
+    styles={customStyles}
+  />
+);
 
 export default ArtistDropdown;
