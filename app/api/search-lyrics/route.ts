@@ -1,4 +1,3 @@
-// app/api/search-lyrics/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 
