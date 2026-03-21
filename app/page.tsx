@@ -7,7 +7,6 @@ import ArtistDropdown, { OptionType } from "../components/ArtistDropdown";
 import KeywordInput from "../components/KeywordInput";
 import ResultCard from "../components/ResultCard";
 import Footer from "../components/Footer";
-import dynamic from 'next/dynamic';
 
 interface ResultType {
   title: string;
@@ -25,14 +24,20 @@ const HomePage: React.FC = () => {
   const [results, setResults] = useState<ResultType[]>([]);
   const [uniqueSongCount, setUniqueSongCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [songsSearched, setSongsSearched] = useState(0);
+  const [searched, setSearched] = useState(false);
 
   const handleSearch = async () => {
     if (!selectedArtist || !keyword) return;
-  
+
     setLoading(true);
     setResults([]);
     setUniqueSongCount(0);
-  
+    setError(null);
+    setSearched(false);
+    setSongsSearched(0);
+
     try {
       const res = await fetch("/api/search-lyrics", {
         method: "POST",
@@ -42,14 +47,19 @@ const HomePage: React.FC = () => {
           keyword,
         }),
       });
-  
+
       const data = await res.json();
-  
+
       if (!res.ok) {
-        console.error("Error:", data.error);
+        setError(data.error ?? "Something went wrong.");
         return;
       }
-  
+
+      if (data.error) {
+        setError(data.error);
+        return;
+      }
+
       const formattedResults: ResultType[] = data.results.map((r: any) => ({
         title: r.songTitle,
         snippet: r.match,
@@ -58,11 +68,14 @@ const HomePage: React.FC = () => {
         section: r.section,
         songUrl: r.songUrl,
       }));
-  
+
       setResults(formattedResults);
       setUniqueSongCount(new Set(formattedResults.map(r => r.title)).size);
+      setSongsSearched(data.songsSearched ?? 0);
+      setSearched(true);
     } catch (err) {
       console.error("Search error:", err);
+      setError("Network error — please try again.");
     } finally {
       setLoading(false);
     }
@@ -127,12 +140,17 @@ const HomePage: React.FC = () => {
           </button>
         </section>
 
-        {/* {loading && (
-          <div className="flex items-center justify-center mt-10">
-          <div className="h-6 w-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
-          <span className="ml-3 text-purple-300 font-medium">Searching...</span>
-        </div>
-        )} */}
+        {/* Error */}
+        {error && (
+          <p className="text-red-400 text-sm text-center">{error}</p>
+        )}
+
+        {/* No results */}
+        {searched && !loading && results.length === 0 && !error && (
+          <p className="text-slate-400 text-sm text-center">
+            No matches found in {songsSearched} song{songsSearched !== 1 ? 's' : ''} searched.
+          </p>
+        )}
 
         {/* Results */}
         {results.length > 0 && (
@@ -144,6 +162,9 @@ const HomePage: React.FC = () => {
             <h2 className="text-lg font-semibold text-white mb-10">
               Found in <span className="text-purple-400 drop-shadow-[0_0_6px_rgba(168,85,247,0.8)]">
                 {uniqueSongCount} unique song{uniqueSongCount !== 1 ? 's' : ''}
+              </span>
+              <span className="text-slate-400 font-normal text-sm ml-2">
+                (searched {songsSearched} total)
               </span>
             </h2>
 
